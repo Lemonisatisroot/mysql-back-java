@@ -37,4 +37,20 @@ public class TimeTaskUtils {
 
 
     }
+
+    //添加定时任务,定时备份刷新日志
+    //@Scheduled(cron = "30 40 23 0 0 5") // cron表达式：每周一 23:40:30 执行
+    @Scheduled(fixedRate = 30000)
+    public void doIncrementTaskBackUp(){
+
+        Date date = new Date(System.currentTimeMillis());
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+        String fileName = simpleDateFormat.format(date) + ".sql";
+
+        mySQLUtils.databaseIncrementBackup(fileName);
+
+        log.info("定时备份已经执行 ------>" + fileName);
+
+
+    }
 }

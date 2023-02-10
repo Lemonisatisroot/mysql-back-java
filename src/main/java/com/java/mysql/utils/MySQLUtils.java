@@ -162,9 +162,7 @@ public class MySQLUtils {
                 //System.out.println("操作完成!!");
                 return true;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
 
@@ -219,9 +217,7 @@ public class MySQLUtils {
                 //System.out.println("操作完成!!");
                 return true;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
 
@@ -277,9 +273,7 @@ public class MySQLUtils {
                 //System.out.println("操作完成!!");
                 return true;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
 
@@ -331,9 +325,7 @@ public class MySQLUtils {
                 //System.out.println("操作完成!!");
                 return true;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
 
@@ -374,9 +366,7 @@ public class MySQLUtils {
                 //System.out.println("操作完成!!");
                 return true;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
 
@@ -388,7 +378,7 @@ public class MySQLUtils {
      * 导出数据库存储结构和自定义函数
      * @param databaseName 数据库名
      * @param fileName 文件名.sql
-     * @return
+     * @return true: 备份成功  false: 备份失败
      */
     public boolean mysqlBackUpStorageAndFun(String databaseName, String fileName) {
 
@@ -419,9 +409,7 @@ public class MySQLUtils {
                 //System.out.println("操作完成!!");
                 return true;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
 
@@ -432,7 +420,7 @@ public class MySQLUtils {
      * 导出事件
      * @param databaseName 数据库名
      * @param fileName 文件名.sql
-     * @return
+     * @return true: 备份成功  false: 备份失败
      */
     public boolean mysqlBackUpEvent(String databaseName, String fileName) {
 
@@ -463,9 +451,7 @@ public class MySQLUtils {
                 //System.out.println("操作完成!!");
                 return true;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
 
@@ -477,7 +463,7 @@ public class MySQLUtils {
      * 不导出触发器
      * @param databaseName 数据库名
      * @param fileName 文件名.sql
-     * @return
+     * @return true: 备份成功  false: 备份失败
      */
     public boolean mysqlBackUpTrigger(String databaseName, String fileName) {
 
@@ -492,8 +478,7 @@ public class MySQLUtils {
         //拼接命令行的命令 数据库备份方法
         StringBuilder cmd = new StringBuilder();
         cmd.append(mysqlBin).append("/mysqldump")
-                .append(" --opt").append(" --host=")
-                .append(host)
+                .append(" --opt").append(" --host=").append(host)
                 .append(" --databases ").append(databaseName) // -B
                 .append(" --skip-triggers ") // 屏蔽导出(默认为导出)
                 .append(" --user=").append(userName)
@@ -507,16 +492,56 @@ public class MySQLUtils {
                 //System.out.println("操作完成!!");
                 return true;
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
 
         return false;
     }
 
+    /**
+     * 数据库增量备份
+     * @param fileName 保存文件名
+     * @return true: 备份成功  false: 备份失败
+     */
+    public Boolean databaseIncrementBackup(String fileName) {
 
+        File saveFile = new File(savePath);
+        if (!saveFile.exists()) {// 如果目录不存在
+            saveFile.mkdirs();// 创建文件夹
+        }
+        if (!savePath.endsWith(File.separator)) {
+            //给保存文件路径 + \  拼接保存路径
+            savePath = savePath + File.separator;
+        }
+        //全备命令
+        //mysqldump --single-transaction --flush-logs --master-data=2 > backup.sql
+        StringBuilder cmd = new StringBuilder();
+        cmd.append(mysqlBin).append("/mysqldump")
+                .append(" --host=").append(host)
+                .append(" -u ").append(userName)
+                .append(" -p").append(password)
+                .append(" --all-databases")
+                .append(" --single-transaction")
+                .append(" --flush-logs")
+                .append(" --master-data=2")
+                .append(" --result-file=").append(savePath + fileName)
+                .append(" --default-character-set=utf8 ");
+
+
+        try {
+            Process process = Runtime.getRuntime().exec(cmd.toString());
+            process.waitFor();//等待上述命令执行完毕后打印下面log
+            System.out.println(process.exitValue());
+            System.out.println("数据库备份结束，备份结果：{}" + (process.exitValue() == 0 ? "success" : "fail"));
+            if (process.exitValue() == 0) {
+                return true;
+            }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 
 
 }
