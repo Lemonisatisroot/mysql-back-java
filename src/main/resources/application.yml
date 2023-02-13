@@ -10,9 +10,9 @@ spring:
 
   task:
     scheduling:
-      thread-name-prefix: apple
+      thread-name-prefix: apple-
       pool:
-        size: 4
+        size: 5
       shutdown:
         await-termination: true
         await-termination-period: 60
@@ -21,6 +21,18 @@ back:
   username: root
   password: abc123
   host: localhost
-  databasename: book
-  mysqlbin: D:/MySQL/MySQL Server 8.0/bin
-  savepath: D:/TestModel
+  database-name: book                         # 指定备份的数据库名称
+  mysql-bin: D:/MySQL/MySQL Server 8.0/bin    # mysql的bin文件目录
+  save-path: D:/TestModel                     # 保存的文件目录
+  tables-name: b_user, t_book                 # 备份的数据库表名列表
+  is-data: true                               # 是否备份数据结构
+  is-back-all: false                           # 是否全部备份
+  is-back-triggers: true                      # 是否导出触发器 (默认为true)
+  is-back-event: false                        # 是否备份事件
+  is-back-storage: false                      # 是否导出存储结构和自定义函数
+  databases-name: book, cloud, blog             # 备份的数据库名列表
+
+time:
+  cron-first: 0 31 16 ? * MON-FRI     # 对数据库进行备份    0/10 * * * * ? 每五秒执行一次 cron表达式
+  cron-second: 0 16 16 ? * *           # 对数据库下的表进行备份 每天下午16:00触发
+  cron-third: 0 15 10 ? * MON-FRI     # 其他备份方式   表示周一到周五每天上午10:15执行作业

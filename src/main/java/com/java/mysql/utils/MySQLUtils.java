@@ -1,5 +1,7 @@
 package com.java.mysql.utils;
 
+import com.java.mysql.dao.Status;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -17,30 +19,9 @@ import java.util.Date;
  * @description TODO 数据库备份操作工具类
  */
 @Component
+@Slf4j
 public class MySQLUtils {
 
-//    //数据库IP地址
-//    private static String host = "localhost";
-//    //数据库用户名
-//    private static String userName = "root";
-//    //数据库密码
-//    private static String password = "abc123";
-//    //备份保存地址
-//    private static String savePath = "D:\\TestModel";
-//    //mysql的bin安装目录
-//    private static String mysqlBin = "D:\\MySQL\\MySQL Server 8.0\\bin";
-//    //数据库名称
-//    private static String databaseName = "cloud";
-
-    @Value("${spring.datasource.driver-class-name}")
-    private String driverClassName;
-
-    @Value("${spring.datasource.url}")
-    private String url;
-
-    private static final String showDataBaseSQL = "SHOW DATABASES;";
-
-    private static final String showTablesSQL = "select table_name from information_schema.tables where table_schema = ?";
 
     //数据库IP地址
     @Value("${back.host}")
@@ -52,14 +33,147 @@ public class MySQLUtils {
     @Value("${back.password}")
     private String password;
     //备份保存地址
-    @Value("${back.savepath}")
+    @Value("${back.save-path}")
     private String savePath;
     //mysql的bin安装目录
-    @Value("${back.mysqlbin}")
+    @Value("${back.mysql-bin}")
     private String mysqlBin;
     //数据库名称
-    @Value("${back.databasename}")
+    @Value("${back.database-name}")
     private String databaseName;
+    //数据库对应下的表名
+    @Value("${back.tables-name}")
+    private List<String> tableNames;
+    //是否保存数据
+    @Value("${back.is-data}")
+    private Boolean isData;
+    //是否全部备份
+    @Value("${back.is-back-all}")
+    private Boolean isBackAll;
+    //备份的数据库名列表
+    @Value("{back.databases-name}")
+    private List<String> databasesName;
+
+    @Value("${spring.datasource.driver-class-name}")
+    private String driverClassName;
+
+    @Value("${spring.datasource.url}")
+    private String url;
+
+    private static final String showDataBaseSQL = "SHOW DATABASES;";
+
+    private static final String showTablesSQL = "select table_name from information_schema.tables where table_schema = ?";
+
+    private static final String showStatus = "SHOW MASTER STATUS";
+
+    private static final String showBinBlogEvevtsSQL = "SHOW BINBLOG EVENTS in ? from ?";
+
+    private static final String flushLogSQL = "flush logs";
+
+
+    /**
+     * 对数据库进行备份操作(全部备份 / 选择备份) 根据配置文件进行备份
+     * @param fileName
+     * @return
+     */
+    public boolean backUpDataBase(String fileName){
+
+        File saveFile = new File(savePath);
+        if (!saveFile.exists()) {// 如果目录不存在
+            saveFile.mkdirs();// 创建文件夹
+        }
+        if (!savePath.endsWith(File.separator)) {
+            //给保存文件路径 + \  拼接保存路径
+            savePath = savePath + File.separator;
+        }
+        //拼接命令行的命令 数据库备份方法
+        // mysqldump --opt --host=localhost --all-databases backup --user=root --password=root --result-file=E:\Sqldata\test.sql --default-character-set=utf8
+        StringBuilder cmd = new StringBuilder();
+        cmd.append(mysqlBin).append("/mysqldump").append(" --opt").append(" --host=").append(host);
+
+        //是否备份所有数据库
+        if(!isBackAll) {
+            cmd.append(" --databases ");
+            //遍历数据库列表
+            for(String database : databasesName) {
+                cmd.append(databaseName + " ");
+            }
+        }else {
+            cmd.append(" --all-databases ");
+        }
+
+        //是否备份数据结构
+        if(!isData) {
+            cmd.append(" --no-data "); // -d
+        }
+
+        cmd.append(" --user=").append(userName)
+                .append(" --password=").append(password)
+                .append(" --result-file=").append(savePath + fileName)
+                .append(" --default-character-set=utf8 ");
+        try {
+            //调用外部执行exe文件的javaAPI
+            Process process = Runtime.getRuntime().exec(cmd.toString());
+            if (process.waitFor() == 0) {// 0 表示线程正常终止
+                //System.out.println("操作完成!!");
+                return true;
+            }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+
+    /**
+     * 对指定数据库中的一个或多个表进行备份 根据配置文件进行备份
+     * @param fileName 文件名称
+     * @return true: 备份成功  false: 备份失败
+     */
+    public boolean backUpByTableName(String fileName) {
+
+        File saveFile = new File(savePath);
+        if (!saveFile.exists()) {// 如果目录不存在
+            saveFile.mkdirs();// 创建文件夹
+        }
+        if (!savePath.endsWith(File.separator)) {
+            //给保存文件路径 + \  拼接保存路径
+            savePath = savePath + File.separator;
+        }
+        //拼接命令行的命令 数据库备份方法
+        // mysqldump --opt --host=localhost --databases backup --tables log_sys sys_user --user=root --password=root --result-file=E:\Sqldata\test.sql --default-character-set=utf8
+        StringBuilder cmd = new StringBuilder();
+        cmd.append(mysqlBin).append("/mysqldump").append(" --opt")
+                .append(" --host=").append(host)
+                .append(" --databases ").append(databaseName) // -B
+                .append(" --tables ");
+        if(!tableNames.isEmpty()) {
+
+            for(String tableName : tableNames) {
+                cmd.append(tableName + " ");
+            }
+        }
+
+        if(!isData) {
+            cmd.append(" --no-data "); // -d
+        }
+        cmd.append(" --user=").append(userName)
+                .append(" --password=").append(password)
+                .append(" --result-file=").append(savePath + fileName)
+                .append(" --default-character-set=utf8 ");
+        try {
+            //调用外部执行exe文件的javaAPI
+            Process process = Runtime.getRuntime().exec(cmd.toString());
+            if (process.waitFor() == 0) {// 0 表示线程正常终止
+                //System.out.println("操作完成!!");
+                return true;
+            }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
 
 
 
@@ -70,6 +184,7 @@ public class MySQLUtils {
         DriverManager.registerDriver(driver);
         return DriverManager.getConnection(url, userName, passWord);
     }
+
 
     //查询所有数据库
     public Map<String, List<String>> getDataBaseName(String userName, String passWord) throws Exception {
@@ -124,7 +239,7 @@ public class MySQLUtils {
 
 
     /**
-     * 备份所有数据库
+     * 备份所有数据库 (手动)
      * @param fileName 保存的文件名
      * @param isData 是否保存表中数据
      * @return true: 备份成功  false: 备份失败
@@ -170,7 +285,7 @@ public class MySQLUtils {
     }
 
     /**
-     * 备份多个数据库的方法
+     * 备份多个数据库的方法 (手动)
      * @param databaseNames 数据库名列表
      * @param fileName 文件名称
      * @param isData 是否备份表中数据
@@ -541,6 +656,65 @@ public class MySQLUtils {
             e.printStackTrace();
         }
         return false;
+    }
+
+
+
+    //查找正在运行状态的日志文件获取 file 和 position
+    public Boolean getStatus(String userName, String passWord, String fileName) throws Exception {
+        Connection connection = getDataBaseConnection(userName, passWord);
+        Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery(showStatus);
+        while (resultSet.next()) {
+            Status status = new Status();
+            log.info("此时的二进制日志文件为 --->" + resultSet.getString("File"));
+            status.setFile(resultSet.getString("File"));
+            log.info("position节点的值为 --->" + resultSet.getBigDecimal("Position"));
+            status.setPosition(resultSet.getBigDecimal("Position"));
+        }
+
+        log.info("执行刷新日志操作，重新生成新的日志文件");
+        boolean execute = statement.execute(flushLogSQL);
+
+        if(!execute) {
+            log.info("生成日志文件失败");
+            return false;
+        }
+
+
+        File saveFile = new File(savePath);
+        if (!saveFile.exists()) {// 如果目录不存在
+            saveFile.mkdirs();// 创建文件夹
+        }
+        if (!savePath.endsWith(File.separator)) {
+            //给保存文件路径 + \  拼接保存路径
+            savePath = savePath + File.separator;
+        }
+        //拼接命令行的命令 数据库备份方法
+        // mysqlbinlog --no-defaults --database=db  --base64-output=decode-rows -v --start-datetime='2019-04-11 00:00:00' --stop-datetime='2019-04-11 15:00:00'  mysql-bin.000007 >/tmp/binlog007.sql --default-character-set=utf8
+        StringBuilder cmd = new StringBuilder();
+        cmd.append(mysqlBin).append("/mysqlbinblog")
+                .append(" --opt").append(" --host=")
+                .append(host)
+                .append(" --all-databases ");
+
+        cmd.append(" --user=").append(userName)
+                .append(" --password=").append(password)
+                .append(" --result-file=").append(savePath + fileName)
+                .append(" --default-character-set=utf8 ");
+        try {
+            //调用外部执行exe文件的javaAPI
+            Process process = Runtime.getRuntime().exec(cmd.toString());
+            if (process.waitFor() == 0) {// 0 表示线程正常终止
+                //System.out.println("操作完成!!");
+                return true;
+            }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return false;
+
     }
 
 

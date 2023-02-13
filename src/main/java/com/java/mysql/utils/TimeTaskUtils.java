@@ -1,5 +1,6 @@
 package com.java.mysql.utils;
 
+import com.java.mysql.service.BackService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,37 +21,47 @@ import java.util.UUID;
 public class TimeTaskUtils {
 
     @Autowired
-    private MySQLUtils mySQLUtils;
+    private BackUpUtils backUpUtils;
 
-    //添加定时任务
-    //@Scheduled(cron = "30 40 23 0 0 5") // cron表达式：每周一 23:40:30 执行
-    //@Scheduled(fixedRate = 30000)
-    public void doTaskBackUp(){
 
-        Date date = new Date(System.currentTimeMillis());
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
-        String fileName = simpleDateFormat.format(date) + ".sql";
-
-        mySQLUtils.mysqlBackUpAllDataBase(fileName, true);
-
-        log.info("定时备份已经执行 ------>" + fileName);
-
+    @Scheduled(cron = "${time.cron-first}")
+    public void doTask1() {
+        String fileName = "db_" + getFileName();
+        log.info("生成的文件为 ------ >" + fileName);
+        boolean back = backUpUtils.backUpDataBase(fileName);
+        log.info("备份数据库 ----> 定时任务已经执行 -----> 执行结果" + back);
 
     }
 
-    //添加定时任务,定时备份刷新日志
-    //@Scheduled(cron = "30 40 23 0 0 5") // cron表达式：每周一 23:40:30 执行
-    @Scheduled(fixedRate = 30000)
-    public void doIncrementTaskBackUp(){
+    @Scheduled(cron = "${time.cron-second}")
+    public void doTask2() {
+        String fileName = "table_" + getFileName();
+        log.info("生成的文件为 ------ >" + fileName);
+        boolean back = backUpUtils.backUpByTableName(fileName);
+        log.info("备份数据库表 ----> 定时任务已经执行 -----> 执行结果" + back);
+    }
+
+//    @Scheduled(cron = "0/6 * * * * ?")
+//    public void doTask3() {
+//        String fileName = "other_" + getFileName();
+//        log.info("生成的文件为 ------ >" + fileName);
+//        boolean others = backUpUtils.backUpOthers(fileName);
+//        log.info("其他备份 ----> 定时任务已经执行 -----> 执行结果" + others);
+//    }
+
+
+
+
+    /**
+     * 生成随机文件名称
+     * @return
+     */
+    private static String getFileName() {
 
         Date date = new Date(System.currentTimeMillis());
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
         String fileName = simpleDateFormat.format(date) + ".sql";
 
-        mySQLUtils.databaseIncrementBackup(fileName);
-
-        log.info("定时备份已经执行 ------>" + fileName);
-
-
+        return fileName;
     }
 }
